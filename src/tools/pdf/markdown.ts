@@ -699,6 +699,12 @@ async function getChromePath(): Promise<string | undefined> {
     
     // Start the check
     chromeCheckPromise = (async () => {
+        // Managed nodes can pin their already-maintained system browser rather
+        // than installing another Chrome build. The upstream default is unchanged.
+        if (process.env.RDC_PDF_PREFER_SYSTEM_BROWSER === 'true') {
+            const system = findSystemChrome();
+            if (system) { cachedChromePath = system; return system; }
+        }
         // 1. Check puppeteer cache first (exact compatible version). Not in the Docker image: the
         // Chrome Puppeteer downloads can't start on Alpine, and the image has its own Chromium
         const cachedChrome = isDockerImage() ? undefined : findPuppeteerChrome();
