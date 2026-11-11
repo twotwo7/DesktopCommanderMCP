@@ -14,6 +14,7 @@ import { PdfParseResult, pdf2md } from './lib/pdf2md.js';
 import { CONFIG_FILE } from '../../config.js';
 import { LazyPackage } from '../../utils/lazy-package.js';
 import { isDockerImage } from '../../utils/system-info.js';
+import { preparePdfBrowser } from '../../utils/pdf-browser-launch.js';
 
 const isUrl = (source: string): boolean =>
     source.startsWith('http://') || source.startsWith('https://');
@@ -327,6 +328,8 @@ function windowsChromePaths(): string[] {
         ...programFiles.map(dir => join(dir, 'Google', 'Chrome', 'Application', 'chrome.exe')),
         ...(env.LOCALAPPDATA ? [join(env.LOCALAPPDATA, 'Google', 'Chrome', 'Application', 'chrome.exe')] : []),
         ...programFiles.map(dir => join(dir, 'Chromium', 'Application', 'chrome.exe')),
+        // Edge uses Chromium and is already installed on managed Windows nodes.
+        ...programFiles.map(dir => join(dir, 'Microsoft', 'Edge', 'Application', 'msedge.exe')),
     ];
 }
 
@@ -696,6 +699,12 @@ async function getChromePath(): Promise<string | undefined> {
     
     // Start the check
     chromeCheckPromise = (async () => {
+        // Managed nodes can pin their already-maintained system browser rather
+        // than installing another Chrome build. The upstream default is unchanged.
+        if (process.env.RDC_PDF_PREFER_SYSTEM_BROWSER === 'true') {
+            const system = findSystemChrome();
+            if (system) { cachedChromePath = system; return system; }
+        }
         // 1. Check puppeteer cache first (exact compatible version). Not in the Docker image: the
         // Chrome Puppeteer downloads can't start on Alpine, and the image has its own Chromium
         const cachedChrome = isDockerImage() ? undefined : findPuppeteerChrome();
@@ -806,19 +815,20 @@ export async function parseMarkdownToPdf(markdown: string, options: any = {}): P
         profile = await createChromeProfile();
         server = await startRenderServer(basedir);
 
-        browser = await puppeteer.launch({
+        const browserLaunch = await preparePdfBrowser(chromePath, profile.arg);
+        try { browser = await puppeteer.launch({
             // Only the launch options resolveRender allows (ALLOWED_LAUNCH_OPTIONS);
             // Desktop Commander's own settings below come after them
             ...launchOptions,
             ...(chromeEnv ? { env: chromeEnv } : {}),
             // Desktop Commander chooses the browser (launch_options.executablePath is dropped by resolveRender)
-            ...(chromePath ? { executablePath: chromePath } : {}),
+            ...(browserLaunch.executable ? { executablePath: browserLaunch.executable } : {}),
             // Chrome runs on the render's own profile whatever the caller asked for
             // (launch_options.args is dropped by resolveRender; userDataDir is overridden here)
             userDataDir: undefined,
             // In the Docker image Chromium can't start its sandbox (and as root refuses to start without one); the container keeps it apart
             args: [profile.arg, ...(isDockerImage() ? ['--no-sandbox'] : [])],
-        });
+        }); } finally { await browserLaunch.release(); }
         await browser.setCookie({ ...server.cookie, domain: 'localhost', path: '/', httpOnly: true });
 
         // The config mdToPdf() would build, on our server's port

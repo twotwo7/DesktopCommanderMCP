@@ -3,7 +3,11 @@ import os from 'os';
 
 // Use user's home directory for configuration files
 export const USER_HOME = os.homedir();
-const CONFIG_DIR = path.join(USER_HOME, '.claude-server-commander');
+// A managed node must not overwrite another RDC installation's configuration.
+// Tool behavior and schemas stay upstream-owned.
+const CONFIG_DIR = process.env.RDC_CONFIG_DIR
+    ? path.resolve(process.env.RDC_CONFIG_DIR)
+    : path.join(USER_HOME, '.claude-server-commander');
 
 // Paths relative to the config directory
 export const CONFIG_FILE = path.join(CONFIG_DIR, 'config.json');
