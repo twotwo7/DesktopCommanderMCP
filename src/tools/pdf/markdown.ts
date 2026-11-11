@@ -328,6 +328,8 @@ function windowsChromePaths(): string[] {
         ...programFiles.map(dir => join(dir, 'Google', 'Chrome', 'Application', 'chrome.exe')),
         ...(env.LOCALAPPDATA ? [join(env.LOCALAPPDATA, 'Google', 'Chrome', 'Application', 'chrome.exe')] : []),
         ...programFiles.map(dir => join(dir, 'Chromium', 'Application', 'chrome.exe')),
+        // Edge uses Chromium and is already installed on managed Windows nodes.
+        ...programFiles.map(dir => join(dir, 'Microsoft', 'Edge', 'Application', 'msedge.exe')),
     ];
 }
 
