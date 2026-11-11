@@ -1,0 +1,33 @@
+name: Hub runtime compatibility
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  runtime:
+    if: github.repository == 'twotwo7/DesktopCommanderMCP'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    env:
+      DESKTOP_COMMANDER_DISABLE_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts --registry=https://registry.npmjs.org
+      - run: npm run build
+      - run: npm audit --omit=dev --audit-level=low --registry=https://registry.npmjs.org
+      - run: node --test test/test-hub-zod4-contract.mjs test/test-hub-stdio-smoke.mjs test/test-hub-pdf-browser.mjs
+      - name: Verify Linux root browser identity drop
+        if: runner.os == 'Linux'
+        run: sudo -E "$(command -v node)" --test test/test-hub-pdf-browser.mjs

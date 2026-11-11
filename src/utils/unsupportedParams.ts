@@ -22,6 +22,13 @@
 function getObjectShape(schema: any): Record<string, unknown> | null {
   let current = schema;
   for (let i = 0; current && current._def && i < 10; i++) {
+    const type = current._def.type;
+    if (type === 'object') return current.shape ?? null;
+    if (type === 'pipe') { current = current._def.in; continue; }
+    if (type === 'optional' || type === 'nullable' || type === 'default') {
+      current = current._def.innerType;
+      continue;
+    }
     const typeName = current._def.typeName;
     if (typeName === 'ZodObject') {
       const shape = typeof current.shape === 'function' ? current.shape() : current.shape;
