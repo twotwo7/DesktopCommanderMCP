@@ -17,3 +17,14 @@ privileges of the service account, independently of tool directory policies.
 
 Engine process sessions are upstream memory state. Do not claim host-reboot
 process continuation or replay uncertain side effects after disconnects.
+
+## Runtime dependency maintenance
+
+The managed fork uses patched Zod 4 schemas for argument validation and native
+input JSON Schema conversion. PDF operation JSON strings retain their original
+parse behavior; unknown top-level parameters still produce corrective warnings.
+Runtime dependency audit is separate from the Hub repository's dependency tree.
+The Hub runtime compatibility workflow builds and checks this fork on Windows
+and Linux, tests native stdio tools and constrained-collection rejection, and
+requires a clean production dependency audit. Development/packaging dependencies
+remain a separate audit scope; a clean runtime audit does not cover them.
